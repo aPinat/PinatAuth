@@ -14,16 +14,16 @@ internal class Program
         var oAuthBaseUrl = Environment.GetEnvironmentVariable("OAUTH_BASE_URL") ?? throw new ApplicationException("OAUTH_BASE_URL missing.");
         var applicationBaseUrl = Environment.GetEnvironmentVariable("APPLICATION_BASE_URL") ?? throw new ApplicationException("APPLICATION_BASE_URL missing.");
         var domain = Environment.GetEnvironmentVariable("DOMAIN") ?? throw new ApplicationException("DOMAIN missing.");
+        var useRefreshToken = bool.Parse(Environment.GetEnvironmentVariable("USE_REFRESH_TOKEN") ?? "false");
 
         var redirectUri = $"{applicationBaseUrl}/login";
 
         app.MapGet("/login", async context =>
         {
             var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-            if (context.Request.Query.ContainsKey("code"))
+            if (context.Request.Query.TryGetValue("code", out var code))
             {
                 logger.LogInformation("Found authorization_code");
-                var code = context.Request.Query["code"];
                 var tokenResponse = await httpClient.PostAsync($"{oAuthBaseUrl}/oauth2/token",
                     new FormUrlEncodedContent(new Dictionary<string, string>
                     {
@@ -42,8 +42,9 @@ internal class Program
                     {
                         context.Response.Cookies.Append("access_token", token.AccessToken,
                             new CookieOptions { Domain = domain, HttpOnly = true, Secure = true });
-                        context.Response.Cookies.Append("refresh_token", token.RefreshToken,
-                            new CookieOptions { Domain = domain, HttpOnly = true, Secure = true, Expires = DateTimeOffset.Now.AddDays(30) });
+                        if (useRefreshToken && token.RefreshToken != null)
+                            context.Response.Cookies.Append("refresh_token", token.RefreshToken,
+                                new CookieOptions { Domain = domain, HttpOnly = true, Secure = true, Expires = DateTimeOffset.Now.AddDays(30) });
                     }
 
                     if (context.Request.Cookies.TryGetValue("PinatAuthRedirect", out var redirect))
@@ -59,10 +60,9 @@ internal class Program
                     await context.Response.WriteAsync(await tokenResponse.Content.ReadAsStringAsync());
                 }
             }
-            else if (context.Request.Cookies.ContainsKey("refresh_token"))
+            else if (useRefreshToken && context.Request.Cookies.TryGetValue("refresh_token", out var refreshToken))
             {
                 logger.LogInformation("Found refresh_token");
-                var refreshToken = context.Request.Cookies["refresh_token"];
                 var tokenResponse = await httpClient.PostAsync($"{oAuthBaseUrl}/oauth2/token",
                     new FormUrlEncodedContent(new Dictionary<string, string>
                     {
@@ -78,8 +78,9 @@ internal class Program
                     {
                         context.Response.Cookies.Append("access_token", token.AccessToken,
                             new CookieOptions { Domain = domain, HttpOnly = true, Secure = true });
-                        context.Response.Cookies.Append("refresh_token", token.RefreshToken,
-                            new CookieOptions { Domain = domain, HttpOnly = true, Secure = true, Expires = DateTimeOffset.Now.AddDays(30) });
+                        if (token.RefreshToken != null)
+                            context.Response.Cookies.Append("refresh_token", token.RefreshToken,
+                                new CookieOptions { Domain = domain, HttpOnly = true, Secure = true, Expires = DateTimeOffset.Now.AddDays(30) });
                     }
 
                     if (context.Request.Query.TryGetValue("redirect_url", out var redirectUrl))
@@ -94,9 +95,18 @@ internal class Program
             }
             else
             {
-                logger.LogInformation("No code or refresh_token found");
                 if (context.Request.Query.ContainsKey("redirect_url")) context.Response.Cookies.Append("PinatAuthRedirect", context.Request.Query["redirect_url"]);
-                context.Response.Redirect($"{oAuthBaseUrl}/oauth2/authorize?client_id={clientId}&response_type=code&scope=offline_access&redirect_uri={redirectUri}");
+
+                if (useRefreshToken)
+                {
+                    logger.LogInformation("No code or refresh_token found");
+                    context.Response.Redirect($"{oAuthBaseUrl}/oauth2/authorize?client_id={clientId}&response_type=code&scope=offline_access&redirect_uri={redirectUri}");
+                }
+                else
+                {
+                    logger.LogInformation("No code found");
+                    context.Response.Redirect($"{oAuthBaseUrl}/oauth2/authorize?client_id={clientId}&response_type=code&redirect_uri={redirectUri}");
+                }
             }
         });
 

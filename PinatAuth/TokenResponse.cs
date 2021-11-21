@@ -10,5 +10,5 @@ public record TokenResponse(
     [property: JsonPropertyName("token_type")]
     string TokenType,
     [property: JsonPropertyName("refresh_token")]
-    string RefreshToken
+    string? RefreshToken
 );
