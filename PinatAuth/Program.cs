@@ -25,7 +25,7 @@ app.MapGet("/login", async context =>
             {
                 { "client_id", clientId },
                 { "client_secret", clientSecret },
-                { "code", code },
+                { "code", code.ToString() },
                 { "grant_type", "authorization_code" },
                 { "redirect_uri", redirectUri }
             }));
@@ -79,10 +79,7 @@ app.MapGet("/login", async context =>
                         new CookieOptions { Domain = domain, HttpOnly = true, Secure = true, Expires = DateTimeOffset.Now.AddDays(30) });
             }
 
-            if (context.Request.Query.TryGetValue("redirect_url", out var redirectUrl))
-                context.Response.Redirect(redirectUrl);
-            else
-                context.Response.Redirect("/");
+            context.Response.Redirect(context.Request.Query.TryGetValue("redirect_url", out var redirectUrl) ? redirectUrl.ToString() : "/");
         }
         else
         {
@@ -93,7 +90,7 @@ app.MapGet("/login", async context =>
     else
     {
         if (context.Request.Query.ContainsKey("redirect_url"))
-            context.Response.Cookies.Append("PinatAuthRedirect", context.Request.Query["redirect_url"]);
+            context.Response.Cookies.Append("PinatAuthRedirect", context.Request.Query["redirect_url"].ToString());
 
         if (useRefreshToken)
         {
