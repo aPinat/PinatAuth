@@ -103,12 +103,12 @@ app.MapGet("/login", async context =>
         if (useRefreshToken)
         {
             logger.LogInformation("No code or refresh_token found");
-            context.Response.Redirect($"{authorizationEndpoint}?client_id={clientId}&response_type=code&scope=offline_access&redirect_uri={redirectUri}");
+            context.Response.Redirect($"{authorizationEndpoint}?client_id={clientId}&response_type=code&scope=openid+profile+email+offline_access&redirect_uri={redirectUri}");
         }
         else
         {
             logger.LogInformation("No code found");
-            context.Response.Redirect($"{authorizationEndpoint}?client_id={clientId}&response_type=code&redirect_uri={redirectUri}");
+            context.Response.Redirect($"{authorizationEndpoint}?client_id={clientId}&response_type=code&scope=openid+profile+email&redirect_uri={redirectUri}");
         }
     }
 });
