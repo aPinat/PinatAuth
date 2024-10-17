@@ -12,7 +12,7 @@ RUN dotnet build -c Release --no-restore
 FROM build AS publish
 RUN dotnet publish -c Release --no-build -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0.10@sha256:b3cdb99fb356091b6395f3444d355da8ae5d63572ba777bed95b65848d6e02be
+FROM mcr.microsoft.com/dotnet/aspnet:8.0.10@sha256:3ded9ccf06f222ec934311be4f9facda83d144331c028340e3a694733cad7d4b
 WORKDIR /app
 COPY --from=publish /app .
 ENTRYPOINT ["dotnet", "PinatAuth.dll"]
